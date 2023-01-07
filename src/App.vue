@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 
 type SupportType = 'internet-identity';
 
@@ -19,8 +20,8 @@ const onCurrentChanged = () => {
     console.error('onCurrentChanged', current.value);
     setCurrent(current.value);
 
-    cleanLocalStorage();
-    cleanSessionStorage();
+    // cleanLocalStorage();
+    // cleanSessionStorage();
 };
 
 const cleanLocalStorage = () => {
@@ -51,7 +52,7 @@ const cleanSessionStorage = () => {
         </div>
         <div class="item">
             <template v-if="current === 'internet-identity'">
-                <div>Internet Identity</div>
+                <InternetIdentityVue />
             </template>
             <template v-else-if="current === 'internet-identity2'">
                 <div>Internet Identity2</div>

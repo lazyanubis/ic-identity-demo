@@ -1,0 +1,9 @@
+service : {
+  __get_candid_interface_tmp_hack : () -> (text) query;
+  exchange : (nat, nat) -> (nat, nat) query;
+  getName : () -> (text) query;
+  hello : (text) -> (text) query;
+  negative : (int) -> (int) query;
+  now : () -> (nat64) query;
+  setName : (text) -> () query;
+}
