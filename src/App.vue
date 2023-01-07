@@ -1,6 +1,4 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue';
-</script>
+<script setup lang="ts"></script>
 
 <template>
     <div class="header">
@@ -8,7 +6,6 @@ import HelloWorld from './components/HelloWorld.vue';
             <option value="II">II</option>
         </select>
     </div>
-    <!-- <HelloWorld msg="Vite + Vue" /> -->
 </template>
 
 <style lang="less" scoped>
