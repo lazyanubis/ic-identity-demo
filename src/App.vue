@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import InternetIdentityVue from './components/identity/InternetIdentity.vue';
+import PlugVue from './components/plug/Plug.vue';
 
 type SupportType = 'internet-identity';
 
@@ -17,7 +18,8 @@ const getCurrent = (): SupportType => {
 const current = ref<SupportType>(getCurrent());
 
 const onCurrentChanged = () => {
-    console.error('onCurrentChanged', current.value);
+    console.error('onCurrentChanged ->', current.value);
+
     setCurrent(current.value);
 
     // cleanLocalStorage();
@@ -47,15 +49,15 @@ const cleanSessionStorage = () => {
         <div class="header">
             <select v-model="current" @change="onCurrentChanged">
                 <option value="internet-identity">Internet Identity</option>
-                <option value="internet-identity2">Internet Identity2</option>
+                <option value="plug">Plug</option>
             </select>
         </div>
         <div class="item">
             <template v-if="current === 'internet-identity'">
                 <InternetIdentityVue />
             </template>
-            <template v-else-if="current === 'internet-identity2'">
-                <div>Internet Identity2</div>
+            <template v-else-if="current === 'plug'">
+                <PlugVue />
             </template>
         </div>
     </div>
