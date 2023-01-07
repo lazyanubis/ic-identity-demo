@@ -83,6 +83,7 @@ const afterMainLogin = () => {
 };
 
 const onMainCall = async () => {
+    mainResult.value = '';
     const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
         actorOptions: {
             agent: mainAgent!,
@@ -153,6 +154,7 @@ const afterSubLogin = () => {
 };
 
 const onSubCall = async () => {
+    subResult.value = '';
     const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
         actorOptions: {
             agent: subAgent!,
