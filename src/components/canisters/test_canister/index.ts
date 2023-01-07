@@ -1,5 +1,4 @@
 import { Actor, HttpAgent, HttpAgentOptions, Agent } from '@dfinity/agent';
-import { Principal } from '@dfinity/principal';
 import { _SERVICE } from './test_canister.did.d';
 
 // Imports and re-exports candid interface
@@ -14,10 +13,10 @@ export const canisterId = 'ipcaz-wiaaa-aaaai-qoy4q-cai';
  * @param {{agentOptions?: import("@dfinity/agent").HttpAgentOptions; actorOptions?: import("@dfinity/agent").ActorConfig}} [options]
  * @return {import("@dfinity/agent").ActorSubclass<import("./test_canister.did.js")._SERVICE>}
  */
-export const createActor = (
-    canisterId: string | Principal,
-    options?: { agentOptions?: HttpAgentOptions; actorOptions?: { agent: Agent } },
-): _SERVICE => {
+export const createActor = (options?: {
+    agentOptions?: HttpAgentOptions;
+    actorOptions?: { agent: Agent };
+}): _SERVICE => {
     const agent = new HttpAgent({
         host: 'https://boundary.ic0.app/', // 默认调用线上的接口
         ...options?.agentOptions,
@@ -45,4 +44,4 @@ export const createActor = (
  * A ready-to-use agent for the test_canister canister
  * @type {import("@dfinity/agent").ActorSubclass<import("./test_canister.did.js")._SERVICE>}
  */
-export const test_canister = createActor(canisterId);
+export const test_canister = createActor();
