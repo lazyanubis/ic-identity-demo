@@ -1,18 +1,75 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { ref } from 'vue';
+
+type SupportType = 'internet-identity';
+
+const setCurrent = (current: SupportType) => localStorage.setItem('__current__', current);
+const getCurrent = (): SupportType => {
+    const c = localStorage.getItem('__current__');
+    if (c === null) {
+        setCurrent('internet-identity');
+        return getCurrent();
+    }
+    return c as SupportType;
+};
+
+const current = ref<SupportType>(getCurrent());
+
+const onCurrentChanged = () => {
+    console.error('onCurrentChanged', current.value);
+    setCurrent(current.value);
+
+    cleanLocalStorage();
+    cleanSessionStorage();
+};
+
+const cleanLocalStorage = () => {
+    const reserved: string[] = ['vConsole_switch_y', 'vConsole_switch_x', '__current__'];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i) as string;
+        if (reserved.includes(key)) continue;
+        localStorage.removeItem(key);
+    }
+};
+const cleanSessionStorage = () => {
+    const reserved: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i) as string;
+        if (reserved.includes(key)) continue;
+        localStorage.removeItem(key);
+    }
+};
+</script>
 
 <template>
-    <div class="header">
-        <select>
-            <option value="II">II</option>
-        </select>
+    <div class="content">
+        <div class="header">
+            <select v-model="current" @change="onCurrentChanged">
+                <option value="internet-identity">Internet Identity</option>
+                <option value="internet-identity2">Internet Identity2</option>
+            </select>
+        </div>
+        <div class="item">
+            <template v-if="current === 'internet-identity'">
+                <div>Internet Identity</div>
+            </template>
+            <template v-else-if="current === 'internet-identity2'">
+                <div>Internet Identity2</div>
+            </template>
+        </div>
     </div>
 </template>
 
 <style lang="less" scoped>
-.header {
-    > select {
-        width: 500px;
-        height: 28px;
+.content {
+    > .header {
+        > select {
+            width: 500px;
+            height: 28px;
+        }
+    }
+    > .item {
+        margin-top: 20px;
     }
 }
 </style>
