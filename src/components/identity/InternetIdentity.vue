@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
-import { AuthClientStorage } from '@dfinity/auth-client/lib/cjs/storage';
+import { AuthClientStorage, LocalStorage } from '@dfinity/auth-client/lib/cjs/storage';
 import { AuthClient } from '@dfinity/auth-client';
 import { HttpAgent, Identity } from '@dfinity/agent';
 import { createActor } from '../canisters/test_canister';
 
 // 默认登录凭证是存在浏览器 IndexedDB 里面的 auth-client-db-http://xxx 里面的
 
+// 组件内临时内存，离开即丢失
 class MemoryStorage implements AuthClientStorage {
     private data: Record<string, string> = {};
     get(key: string): Promise<string | null> {
@@ -104,7 +105,8 @@ const afterMainLogout = () => {
 
 const onSubLogin = async () => {
     subClient = await AuthClient.create({
-        storage: new MemoryStorage(),
+        // storage: new MemoryStorage(),
+        storage: new LocalStorage('internet-identity-2:'), // 可以指定前缀保存到 localStorage 里面
     });
 
     if (subClient === undefined) throw new Error('sub client can not be undefined');
