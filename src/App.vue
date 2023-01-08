@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 import PlugVue from './components/plug/Plug.vue';
+import AstroxMeVue from './components/astrox/AstroxMe.vue';
 
 type SupportType = 'internet-identity';
 
@@ -50,6 +51,7 @@ const cleanSessionStorage = () => {
             <select v-model="current" @change="onCurrentChanged">
                 <option value="internet-identity">Internet Identity</option>
                 <option value="plug">Plug</option>
+                <option value="astrox">Astrox ME</option>
             </select>
         </div>
         <div class="item">
@@ -58,6 +60,9 @@ const cleanSessionStorage = () => {
             </template>
             <template v-else-if="current === 'plug'">
                 <PlugVue />
+            </template>
+            <template v-else-if="current === 'astrox'">
+                <AstroxMeVue />
             </template>
         </div>
     </div>
