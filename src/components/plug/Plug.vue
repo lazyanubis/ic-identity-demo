@@ -1,24 +1,32 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
-import { HttpAgent } from '@dfinity/agent';
-import { createActor } from '../canisters/test_canister';
-import { createActor as createNftActor } from '../canisters/nft';
-import { createActor as createLedgerActor } from '../canisters/ledger';
+import { idlFactory, canisterId, _SERVICE } from '../canisters/test_canister';
+import {
+    idlFactory as idlFactoryNft,
+    canisterId as canisterIdNft,
+    _SERVICE as _SERVICE_NFT,
+} from '../canisters/nft';
+import {
+    idlFactory as idlFactoryLedger,
+    canisterId as canisterIdLedger,
+    _SERVICE as _SERVICE_LEDGER,
+} from '../canisters/ledger';
 import { Principal } from '@dfinity/principal';
+import { ActorCreator, getActorCreatorByPlug, PlugInterface } from '../common';
 
 const MAIN_PRINCIPAL = '37pej-6oomu-uuzj2-ecmh3-ibavk-qtrkn-bhz4v-vgusr-z7k4r-yatqo-uae';
 const SUB_PRINCIPAL = 's3zx7-klabw-jftqa-voxdq-wmf2s-l5pdg-zxjkl-tnpfq-pcajr-tgn2d-rae';
 
 const mainPrincipal = ref<string>('');
-let mainAgent: HttpAgent | undefined = undefined;
+let mainCreateActor: ActorCreator | undefined = undefined;
 const mainResult = ref<string>('');
 
 const subPrincipal = ref<string>('');
-let subAgent: HttpAgent | undefined = undefined;
+let subCreateActor: ActorCreator | undefined = undefined;
 const subResult = ref<string>('');
 
 const onMainLogin = async () => {
-    const plug = (window as any).ic?.plug;
+    const plug = (window as any).ic?.plug as PlugInterface;
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
@@ -28,15 +36,17 @@ const onMainLogin = async () => {
         console.error('onConnectionUpdate', plug.sessionManager.sessionData?.accountId);
         const agent = plug.sessionManager.sessionData?.agent;
         if (agent) {
-            const actor = createActor({ actorOptions: { agent: agent! } });
-            console.error('onConnectionUpdate actor', actor);
-            actor.hello('onConnectionUpdate').then((d) => {
-                console.error('onConnectionUpdate', d);
+            mainCreateActor = getActorCreatorByPlug(plug);
+            mainCreateActor<_SERVICE>(idlFactory, canisterId).then((actor) => {
+                console.error('onConnectionUpdate actor', actor);
+                actor.hello('onConnectionUpdate').then((d) => {
+                    console.error('onConnectionUpdate', d);
 
-                // 测试调用复杂罐子
-                testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
-                    const accountId = plug.sessionManager.sessionData?.accountId;
-                    testLedger(agent, accountId); // 测试调用账本罐子
+                    // 测试调用复杂罐子
+                    testNft(mainCreateActor!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+                        const accountId = plug.sessionManager.sessionData?.accountId;
+                        testLedger(mainCreateActor!, accountId); // 测试调用账本罐子
+                    });
                 });
             });
         }
@@ -68,7 +78,7 @@ const onMainLogin = async () => {
         const agent = plug.sessionManager.sessionData.agent;
         if (agent) {
             console.error('using session data');
-            afterMainLogin(agent as HttpAgent);
+            afterMainLogin(plug);
             return;
         }
     }
@@ -79,11 +89,12 @@ const onMainLogin = async () => {
 
     // timeout 也无法防止用户关闭弹窗
     plug.requestConnect({ whitelist, onConnectionUpdate, timeout: 60000 })
-        .then(() => {
+        .then((d) => {
+            console.error('public key', d);
             const agent = plug.agent;
             if (!agent) throw new Error('agent must be valid.');
             console.error('Main Login Successful!');
-            afterMainLogin(plug.agent as HttpAgent);
+            afterMainLogin(plug);
         })
         .catch((error: any) => {
             // Error: The agent creation was rejected. // 直接点拒绝会返回这个
@@ -101,7 +112,7 @@ const onMainLogin = async () => {
     // })()
     //     .then((r: any) => {
     //         console.error('allow', r, plug.agent);
-    //         afterMainLogin(plug.agent as HttpAgent);
+    //         afterMainLogin(plug);
     //     })
     //     .catch((e: any) => {
     //         // Error: The agent creation was rejected. // 直接点拒绝会返回这个
@@ -109,27 +120,26 @@ const onMainLogin = async () => {
     //     });
 };
 
-const afterMainLogin = async (agent: HttpAgent) => {
-    const principal = (await agent.getPrincipal()).toText();
+const afterMainLogin = async (plug: PlugInterface) => {
+    const principal = (await plug.sessionManager.sessionData.agent.getPrincipal()).toText();
 
+    mainCreateActor = getActorCreatorByPlug(plug);
     mainPrincipal.value = principal;
-    mainAgent = agent;
     mainResult.value = '';
 
     console.error('main principal', principal);
-    console.error('main agent', agent);
 };
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = createActor({ actorOptions: { agent: mainAgent! } });
+    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 
     // 测试调用复杂罐子
-    testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+    testNft(mainCreateActor!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
         const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-        testLedger(mainAgent!, accountId); // 测试调用账本罐子
+        testLedger(mainCreateActor!, accountId); // 测试调用账本罐子
     });
 };
 
@@ -141,13 +151,13 @@ const onMainLogout = () => {
 };
 
 const afterMainLogout = () => {
+    mainCreateActor = undefined;
     mainPrincipal.value = '';
-    mainAgent = undefined;
     mainResult.value = '';
 };
 
-const testNft = async (agent: HttpAgent, index: number, principal: string, to: string) => {
-    const nft = createNftActor({ actorOptions: { agent } });
+const testNft = async (createActor: ActorCreator, index: number, principal: string, to: string) => {
+    const nft = await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft);
     const token = await nft.calcTokenIdentifier(index);
     console.error('testNft token', index, token, nft);
     const balanceResult: any = await nft.balance({
@@ -164,15 +174,15 @@ const testNft = async (agent: HttpAgent, index: number, principal: string, to: s
         token: token,
         notify: false,
         from: { principal: Principal.fromText(principal) },
-        memo: new Uint8Array(),
+        memo: [] as any,
         subaccount: [],
         amount: BigInt('1'),
     });
     console.error('testNft transfer to', to, transferResult);
 };
 
-const testLedger = async (agent: HttpAgent, accountId: string) => {
-    const ledger = createLedgerActor({ actorOptions: { agent } });
+const testLedger = async (createActor: ActorCreator, accountId: string) => {
+    const ledger = await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger);
     ledger.account_balance_dfx({ account: accountId }).then((d) => {
         console.error('testLedger ledger balance', d);
 
@@ -192,7 +202,7 @@ const testLedger = async (agent: HttpAgent, accountId: string) => {
 };
 
 const onSubLogin = async () => {
-    const plug = (window as any).ic?.plug;
+    const plug = (window as any).ic?.plug as PlugInterface;
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
@@ -220,7 +230,7 @@ const onSubLogin = async () => {
             const agent = plug.agent;
             if (!agent) throw new Error('agent must be valid.');
             console.error('Main Login Successful!');
-            afterSubLogin(plug.agent as HttpAgent);
+            afterSubLogin(plug);
         })
         .catch((e: any) => {
             // Error: The agent creation was rejected. // 直接点拒绝会返回这个
@@ -235,27 +245,26 @@ const onSubLogin = async () => {
         });
 };
 
-const afterSubLogin = async (agent: HttpAgent) => {
-    const principal = (await agent.getPrincipal()).toText();
+const afterSubLogin = async (plug: PlugInterface) => {
+    const principal = (await plug.sessionManager.sessionData.agent.getPrincipal()).toText();
 
+    subCreateActor = getActorCreatorByPlug(plug);
     subPrincipal.value = principal;
-    subAgent = agent;
     subResult.value = '';
 
     console.error('sub principal', principal);
-    console.error('sub agent', agent);
 };
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = createActor({ actorOptions: { agent: subAgent! } });
+    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 
     // 测试调用复杂罐子
-    testNft(subAgent!, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
+    testNft(subCreateActor!, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
         const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-        testLedger(subAgent!, accountId); // 测试调用账本罐子
+        testLedger(subCreateActor!, accountId); // 测试调用账本罐子
     });
 };
 
@@ -267,8 +276,8 @@ const onSubLogout = () => {
 };
 
 const afterSubLogout = () => {
+    subCreateActor = undefined;
     subPrincipal.value = '';
-    subAgent = undefined;
     subResult.value = '';
 };
 </script>
