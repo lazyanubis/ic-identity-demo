@@ -46,17 +46,16 @@ const afterMainLogin = async (agent: HttpAgent) => {
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
-        actorOptions: {
-            agent: mainAgent!,
-        },
-    });
+    const actor = createActor({ actorOptions: { agent: mainAgent! } });
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 };
 
 const onMainLogout = () => {
+    if (mainPrincipal.value) {
+        (window as any).ic?.plug?.disconnect();
     afterMainLogout();
+    }
 };
 
 const afterMainLogout = () => {
@@ -98,17 +97,16 @@ const afterSubLogin = async (agent: HttpAgent) => {
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
-        actorOptions: {
-            agent: subAgent!,
-        },
-    });
+    const actor = createActor({ actorOptions: { agent: subAgent! } });
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 };
 
 const onSubLogout = () => {
+    if (subPrincipal.value) {
+        // (window as any).ic?.plug?.disconnect(); // 次登录本身没有记录
     afterSubLogout();
+    }
 };
 
 const afterSubLogout = () => {
