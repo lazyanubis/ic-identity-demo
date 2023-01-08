@@ -22,19 +22,91 @@ const onMainLogin = async () => {
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
+    const onConnectionUpdate = () => {
+        console.error('onConnectionUpdate', plug.sessionManager);
+        console.error('onConnectionUpdate', plug.sessionManager.sessionData?.principalId);
+        console.error('onConnectionUpdate', plug.sessionManager.sessionData?.accountId);
+        const agent = plug.sessionManager.sessionData?.agent;
+        if (agent) {
+            const actor = createActor({ actorOptions: { agent: agent! } });
+            console.error('onConnectionUpdate actor', actor);
+            actor.hello('onConnectionUpdate').then((d) => {
+                console.error('onConnectionUpdate', d);
+
+                // 测试调用复杂罐子
+                testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+                    const accountId = plug.sessionManager.sessionData?.accountId;
+                    testLedger(agent, accountId); // 测试调用账本罐子
+                });
+            });
+        }
+    };
+    plug.sessionManager.onConnectionUpdate = onConnectionUpdate;
+
+    // 调用这个方法就会把上次的缓存加入
+    // 主调用要尝试从缓存中查找上次的 agent
+    // 目标位置 window.ic.plug.sessionManager.sessionData，不调用 isConnected方法的话，是 null
+
+    console.error('before isConnected', plug.sessionManager.sessionData);
+    const isConnected = await new Promise(async (resolve) => {
+        const timeout = setTimeout(() => resolve(false), 333);
+        const connected = await plug.isConnected();
+        clearTimeout(timeout);
+        resolve(connected);
+    });
+    console.error('isConnected', isConnected);
+    if (isConnected) {
+        console.error(
+            'after isConnected and connected',
+            plug.sessionManager.sessionData?.principalId,
+        );
+        console.error(
+            'after isConnected and connected',
+            plug.sessionManager.sessionData?.accountId,
+        );
+        console.error('after isConnected and connected', plug.sessionManager);
+        const agent = plug.sessionManager.sessionData.agent;
+        if (agent) {
+            console.error('using session data');
+            afterMainLogin(agent as HttpAgent);
+            return;
+        }
+    }
+
     console.error('plug', plug, plug.agent);
 
-    const whitelist = ['ipcaz-wiaaa-aaaai-qoy4q-cai'];
+    const whitelist: string[] = ['ipcaz-wiaaa-aaaai-qoy4q-cai', 'ryjl3-tyaaa-aaaaa-aaaba-cai'];
 
-    plug.requestConnect({ whitelist })
-        .then((r: any) => {
-            console.error('allow', r, plug.agent);
+    // timeout 也无法防止用户关闭弹窗
+    plug.requestConnect({ whitelist, onConnectionUpdate, timeout: 60000 })
+        .then(() => {
+            const agent = plug.agent;
+            if (!agent) throw new Error('agent must be valid.');
+            console.error('Main Login Successful!');
             afterMainLogin(plug.agent as HttpAgent);
         })
-        .catch((e: any) => {
+        .catch((error: any) => {
             // Error: The agent creation was rejected. // 直接点拒绝会返回这个
-            console.error('e', `${e}`);
+            console.error('Sub Login Failed:', `${error}`);
         });
+
+    // ! plug 的弹框如果被关闭了，那么不会报错 // 其实无所谓，反正还是没登录的状态
+    // (async () => {
+    //     return new Promise(async (resolve, reject) => {
+    //         const timeout = setTimeout(() => reject(new Error('Timeout for 60s')), 60000); // 等一分钟
+    //         const result = await plug.requestConnect({ whitelist });
+    //         clearTimeout(timeout);
+    //         resolve(result);
+    //     });
+    // })()
+    //     .then((r: any) => {
+    //         console.error('allow', r, plug.agent);
+    //         afterMainLogin(plug.agent as HttpAgent);
+    //     })
+    //     .catch((e: any) => {
+    //         // Error: The agent creation was rejected. // 直接点拒绝会返回这个
+    //         console.error('plug requestConnect failed:', `${e}`);
+    //     });
 };
 
 const afterMainLogin = async (agent: HttpAgent) => {
@@ -54,15 +126,17 @@ const onMainCall = async () => {
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 
-    await testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
-    const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-    await testLedger(mainAgent!, accountId); // 测试调用账本罐子
+    // 测试调用复杂罐子
+    testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+        const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+        testLedger(mainAgent!, accountId); // 测试调用账本罐子
+    });
 };
 
 const onMainLogout = () => {
     if (mainPrincipal.value) {
         (window as any).ic?.plug?.disconnect();
-    afterMainLogout();
+        afterMainLogout();
     }
 };
 
@@ -122,18 +196,42 @@ const onSubLogin = async () => {
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
+    // ? 需要保存上次登录的缓存，登录完成后再进行恢复
+    // console.error('last', plug.sessionManager.sessionData);
+    // console.error('last', plug.sessionManager.sessionData?.principalId);
+    // const isConnected = await new Promise(async (resolve) => {
+    //     const timeout = setTimeout(() => resolve(false), 333);
+    //     const connected = await plug.isConnected();
+    //     clearTimeout(timeout);
+    //     resolve(connected);
+    // });
+    // const sessionData = plug.sessionManager.sessionData;
+    // plug.sessionManager.sessionData = null; // 删除上次的结果
+
     console.error('plug', plug, plug.agent);
 
-    const whitelist = ['ipcaz-wiaaa-aaaai-qoy4q-cai'];
+    const whitelist: string[] = ['ipcaz-wiaaa-aaaai-qoy4q-cai'];
 
-    plug.requestConnect({ whitelist })
+    plug.requestConnect({
+        whitelist,
+        timeout: 60000, // 默认是 2 分钟
+    })
         .then((r: any) => {
-            console.error('allow', r, plug.agent);
+            const agent = plug.agent;
+            if (!agent) throw new Error('agent must be valid.');
+            console.error('Main Login Successful!');
             afterSubLogin(plug.agent as HttpAgent);
         })
         .catch((e: any) => {
             // Error: The agent creation was rejected. // 直接点拒绝会返回这个
-            console.error('e', `${e}`);
+            console.error('Sub Login Failed:', `${e}`);
+        })
+        .finally(() => {
+            console.error('final');
+            // console.error('final', isConnected, sessionData);
+            // if (isConnected && sessionData) {
+            //     plug.sessionManager.sessionData = sessionData;
+            // }
         });
 };
 
@@ -154,15 +252,17 @@ const onSubCall = async () => {
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 
-    await testNft(subAgent!, 0, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
-    const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-    await testLedger(subAgent!, accountId); // 测试调用账本罐子
+    // 测试调用复杂罐子
+    testNft(subAgent!, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
+        const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+        testLedger(subAgent!, accountId); // 测试调用账本罐子
+    });
 };
 
 const onSubLogout = () => {
     if (subPrincipal.value) {
         // (window as any).ic?.plug?.disconnect(); // 次登录本身没有记录
-    afterSubLogout();
+        afterSubLogout();
     }
 };
 
