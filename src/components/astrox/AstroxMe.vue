@@ -79,6 +79,9 @@ const subResult = ref<string>('');
 
 const onMainLogin = async () => {
     const instance = await IC.create({
+        storage: new LocalStorage('astrox-main-'),
+        permissions: [PermissionsType.identity],
+        maxTimeToLive: BigInt('600000000000'), // 纳秒
         useFrame: document.body.clientWidth > 768 ? true : undefined,
         // walletProviderUrl: '',
         onAuthenticated: async (ic: IC) => {
@@ -196,6 +199,7 @@ const testLedger = async (createActor: ActorCreator) => {
 
 const onSubLogin = async () => {
     const instance = await IC.create({
+        storage: new LocalStorage('astrox-sub-'),
         useFrame: document.body.clientWidth > 768 ? true : undefined,
         // walletProviderUrl: '',
         onAuthenticated: async (ic: IC) => {
