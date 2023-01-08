@@ -15,7 +15,7 @@ export const canisterId = 'dkroc-xyaaa-aaaai-qozbq-cai';
 export const createActor = (options?: {
     agentOptions?: HttpAgentOptions;
     actorOptions?: { agent: Agent };
-}) => {
+}): _SERVICE => {
     const agent = new HttpAgent({
         host: 'https://boundary.ic0.app/', // 默认调用线上的接口
         ...options?.agentOptions,

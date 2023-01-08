@@ -5,6 +5,11 @@ import { AuthClient } from '@dfinity/auth-client';
 import { HttpAgent, Identity } from '@dfinity/agent';
 import { createActor } from '../canisters/test_canister';
 import { createActor as createLedgerActor } from '../canisters/ledger';
+import { createActor as createNftActor } from '../canisters/nft';
+import { Principal } from '@dfinity/principal';
+
+const MAIN_PRINCIPAL = 'ug2vs-7ulmr-5sqwv-kqr47-rkbuj-5wvpb-h5bkb-osfeo-24qvs-bsfvp-nqe';
+const SUB_PRINCIPAL = 'l6gbo-ofx6i-6ezfd-gcnt2-2l6bn-fgzfx-g7xoy-22ehb-ya55e-qcq2a-yae';
 
 // 默认登录凭证是存在浏览器 IndexedDB 里面的 auth-client-db-http://xxx 里面的
 
@@ -89,7 +94,8 @@ const onMainCall = async () => {
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 
-    testLedger(mainAgent!); // 测试调用账本罐子
+    await testNft(mainAgent!, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(mainAgent!); // 测试调用账本罐子
 };
 
 const onMainLogout = () => {
@@ -101,6 +107,31 @@ const afterMainLogout = () => {
     mainPrincipal.value = '';
     mainAgent = undefined;
     mainResult.value = '';
+};
+
+const testNft = async (agent: HttpAgent, index: number, principal: string, to: string) => {
+    const nft = createNftActor({ actorOptions: { agent } });
+    const token = await nft.calcTokenIdentifier(index);
+    console.error('testNft token', index, token, nft);
+    const balanceResult: any = await nft.balance({
+        token,
+        user: { principal: Principal.fromText(principal) },
+    });
+
+    console.error('testNft balance', principal, balanceResult);
+    if (balanceResult.err) return;
+    if (balanceResult.ok !== BigInt('1')) return;
+
+    const transferResult = await nft.transfer({
+        to: { principal: Principal.fromText(to) },
+        token: token,
+        notify: false,
+        from: { principal: Principal.fromText(principal) },
+        memo: new Uint8Array(),
+        subaccount: [],
+        amount: BigInt('1'),
+    });
+    console.error('testNft transfer to', to, transferResult);
 };
 
 const testLedger = async (agent: HttpAgent) => {
@@ -182,7 +213,8 @@ const onSubCall = async () => {
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 
-    testLedger(subAgent!); // 测试调用账本罐子
+    await testNft(subAgent!, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(subAgent!); // 测试调用账本罐子
 };
 
 const onSubLogout = () => {
