@@ -2,11 +2,20 @@
 import { ref } from 'vue';
 import { AuthClientStorage, LocalStorage } from '@dfinity/auth-client/lib/cjs/storage';
 import { AuthClient } from '@dfinity/auth-client';
-import { HttpAgent, Identity } from '@dfinity/agent';
-import { createActor } from '../canisters/test_canister';
-import { createActor as createNftActor } from '../canisters/nft';
-import { createActor as createLedgerActor } from '../canisters/ledger';
+import { HttpAgent } from '@dfinity/agent';
+import { idlFactory, canisterId, _SERVICE } from '../canisters/test_canister';
+import {
+    idlFactory as idlFactoryNft,
+    canisterId as canisterIdNft,
+    _SERVICE as _SERVICE_NFT,
+} from '../canisters/nft';
+import {
+    idlFactory as idlFactoryLedger,
+    canisterId as canisterIdLedger,
+    _SERVICE as _SERVICE_LEDGER,
+} from '../canisters/ledger';
 import { Principal } from '@dfinity/principal';
+import { ActorCreator, getActorCreatorByAgent } from '../common';
 
 const MAIN_PRINCIPAL = 'ug2vs-7ulmr-5sqwv-kqr47-rkbuj-5wvpb-h5bkb-osfeo-24qvs-bsfvp-nqe';
 const SUB_PRINCIPAL = 'l6gbo-ofx6i-6ezfd-gcnt2-2l6bn-fgzfx-g7xoy-22ehb-ya55e-qcq2a-yae';
@@ -36,15 +45,13 @@ class MemoryStorage implements AuthClientStorage {
 }
 
 let mainClient: AuthClient | undefined = undefined;
-let mainIdentity: Identity | undefined = undefined;
+let mainCreateActor: ActorCreator | undefined = undefined;
 const mainPrincipal = ref<string>('');
-let mainAgent: HttpAgent | undefined = undefined;
 const mainResult = ref<string>('');
 
 let subClient: AuthClient | undefined = undefined;
-let subIdentity: Identity | undefined = undefined;
+let subCreateActor: ActorCreator | undefined = undefined;
 const subPrincipal = ref<string>('');
-let subAgent: HttpAgent | undefined = undefined;
 const subResult = ref<string>('');
 
 const onMainLogin = async () => {
@@ -78,24 +85,22 @@ const afterMainLogin = () => {
         identity,
     });
 
-    mainIdentity = identity;
+    mainCreateActor = getActorCreatorByAgent(agent);
     mainPrincipal.value = principal;
-    mainAgent = agent;
     mainResult.value = '';
 
-    console.error('main identity', identity);
     console.error('main principal', principal);
     console.error('main agent', agent);
 };
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = createActor({ actorOptions: { agent: mainAgent! } });
+    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 
-    await testNft(mainAgent!, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(mainAgent!); // 测试调用账本罐子
+    await testNft(mainCreateActor!, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(mainCreateActor!); // 测试调用账本罐子
 };
 
 const onMainLogout = () => {
@@ -103,14 +108,13 @@ const onMainLogout = () => {
 };
 
 const afterMainLogout = () => {
-    mainIdentity = undefined;
+    mainCreateActor = undefined;
     mainPrincipal.value = '';
-    mainAgent = undefined;
     mainResult.value = '';
 };
 
-const testNft = async (agent: HttpAgent, index: number, principal: string, to: string) => {
-    const nft = createNftActor({ actorOptions: { agent } });
+const testNft = async (createActor: ActorCreator, index: number, principal: string, to: string) => {
+    const nft = await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft);
     const token = await nft.calcTokenIdentifier(index);
     console.error('testNft token', index, token, nft);
     const balanceResult: any = await nft.balance({
@@ -134,8 +138,8 @@ const testNft = async (agent: HttpAgent, index: number, principal: string, to: s
     console.error('testNft transfer to', to, transferResult);
 };
 
-const testLedger = async (agent: HttpAgent) => {
-    const ledger = createLedgerActor({ actorOptions: { agent } });
+const testLedger = async (createActor: ActorCreator) => {
+    const ledger = await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger);
     ledger
         .account_balance_dfx({
             account: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
@@ -197,24 +201,22 @@ const afterSubLogin = () => {
         identity,
     });
 
-    subIdentity = identity;
+    subCreateActor = getActorCreatorByAgent(agent);
     subPrincipal.value = principal;
-    subAgent = agent;
     subResult.value = '';
 
-    console.error('sub identity', identity);
     console.error('sub principal', principal);
     console.error('sub agent', agent);
 };
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = createActor({ actorOptions: { agent: subAgent! } });
+    const actor = await subCreateActor!<_SERVICE>(idlFactory, canisterId);
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 
-    await testNft(subAgent!, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(subAgent!); // 测试调用账本罐子
+    await testNft(subCreateActor!, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(subCreateActor!); // 测试调用账本罐子
 };
 
 const onSubLogout = () => {
@@ -222,9 +224,8 @@ const onSubLogout = () => {
 };
 
 const afterSubLogout = () => {
-    subIdentity = undefined;
+    subCreateActor = undefined;
     subPrincipal.value = '';
-    subAgent = undefined;
     subResult.value = '';
 };
 </script>

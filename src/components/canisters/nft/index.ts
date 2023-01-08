@@ -1,5 +1,6 @@
 import { Actor, HttpAgent, HttpAgentOptions, Agent } from '@dfinity/agent';
 import { _SERVICE } from './nft.did.d';
+export type { _SERVICE } from './nft.did.d';
 
 // Imports and re-exports candid interface
 import { idlFactory } from './nft.did.js';

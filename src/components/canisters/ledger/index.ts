@@ -1,5 +1,6 @@
 import { Actor, HttpAgent, HttpAgentOptions, Agent } from '@dfinity/agent';
 import { _SERVICE } from './ledger.did.d';
+export type { _SERVICE } from './ledger.did.d';
 
 // Imports and re-exports candid interface
 import { idlFactory } from './ledger.did.js';
