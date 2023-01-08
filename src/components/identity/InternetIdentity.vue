@@ -4,6 +4,7 @@ import { AuthClientStorage, LocalStorage } from '@dfinity/auth-client/lib/cjs/st
 import { AuthClient } from '@dfinity/auth-client';
 import { HttpAgent, Identity } from '@dfinity/agent';
 import { createActor } from '../canisters/test_canister';
+import { createActor as createLedgerActor } from '../canisters/ledger';
 
 // 默认登录凭证是存在浏览器 IndexedDB 里面的 auth-client-db-http://xxx 里面的
 
@@ -84,13 +85,11 @@ const afterMainLogin = () => {
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
-        actorOptions: {
-            agent: mainAgent!,
-        },
-    });
+    const actor = createActor({ actorOptions: { agent: mainAgent! } });
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
+
+    testLedger(mainAgent!); // 测试调用账本罐子
 };
 
 const onMainLogout = () => {
@@ -102,6 +101,30 @@ const afterMainLogout = () => {
     mainPrincipal.value = '';
     mainAgent = undefined;
     mainResult.value = '';
+};
+
+const testLedger = async (agent: HttpAgent) => {
+    const ledger = createLedgerActor({ actorOptions: { agent } });
+    ledger
+        .account_balance_dfx({
+            account: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
+        })
+        .then((d) => {
+            console.error('testLedger ledger balance', d);
+
+            ledger
+                .send_dfx({
+                    to: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
+                    fee: { e8s: BigInt('10000') },
+                    memo: BigInt(0),
+                    from_subaccount: [],
+                    created_at_time: [],
+                    amount: { e8s: BigInt('20000') },
+                })
+                .then((d) => {
+                    console.error('testLedger ledger send', d);
+                });
+        });
 };
 
 const onSubLogin = async () => {
@@ -155,13 +178,11 @@ const afterSubLogin = () => {
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = createActor('ipcaz-wiaaa-aaaai-qoy4q-cai', {
-        actorOptions: {
-            agent: subAgent!,
-        },
-    });
+    const actor = createActor({ actorOptions: { agent: subAgent! } });
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
+
+    testLedger(subAgent!); // 测试调用账本罐子
 };
 
 const onSubLogout = () => {
