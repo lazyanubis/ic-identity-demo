@@ -4,7 +4,8 @@ import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 import PlugVue from './components/plug/Plug.vue';
 import AstroxMeVue from './components/astrox/AstroxMe.vue';
 
-type SupportType = 'internet-identity';
+
+type SupportType = 'internet-identity' | 'plug' | 'astrox';
 
 const setCurrent = (current: SupportType) => localStorage.setItem('__current__', current);
 const getCurrent = (): SupportType => {
