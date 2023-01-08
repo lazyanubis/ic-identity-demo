@@ -1,9 +1,13 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
-import { AuthClientStorage, LocalStorage } from '@dfinity/auth-client/lib/cjs/storage';
-import { AuthClient } from '@dfinity/auth-client';
-import { HttpAgent, Identity } from '@dfinity/agent';
+import { HttpAgent } from '@dfinity/agent';
 import { createActor } from '../canisters/test_canister';
+import { createActor as createNftActor } from '../canisters/nft';
+import { createActor as createLedgerActor } from '../canisters/ledger';
+import { Principal } from '@dfinity/principal';
+
+const MAIN_PRINCIPAL = '37pej-6oomu-uuzj2-ecmh3-ibavk-qtrkn-bhz4v-vgusr-z7k4r-yatqo-uae';
+const SUB_PRINCIPAL = 's3zx7-klabw-jftqa-voxdq-wmf2s-l5pdg-zxjkl-tnpfq-pcajr-tgn2d-rae';
 
 const mainPrincipal = ref<string>('');
 let mainAgent: HttpAgent | undefined = undefined;
@@ -49,6 +53,10 @@ const onMainCall = async () => {
     const actor = createActor({ actorOptions: { agent: mainAgent! } });
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
+
+    await testNft(mainAgent!, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+    await testLedger(mainAgent!, accountId); // 测试调用账本罐子
 };
 
 const onMainLogout = () => {
@@ -62,6 +70,51 @@ const afterMainLogout = () => {
     mainPrincipal.value = '';
     mainAgent = undefined;
     mainResult.value = '';
+};
+
+const testNft = async (agent: HttpAgent, index: number, principal: string, to: string) => {
+    const nft = createNftActor({ actorOptions: { agent } });
+    const token = await nft.calcTokenIdentifier(index);
+    console.error('testNft token', index, token, nft);
+    const balanceResult: any = await nft.balance({
+        token,
+        user: { principal: Principal.fromText(principal) },
+    });
+
+    console.error('testNft balance', principal, balanceResult);
+    if (balanceResult.err) return;
+    if (balanceResult.ok !== BigInt('1')) return;
+
+    const transferResult = await nft.transfer({
+        to: { principal: Principal.fromText(to) },
+        token: token,
+        notify: false,
+        from: { principal: Principal.fromText(principal) },
+        memo: new Uint8Array(),
+        subaccount: [],
+        amount: BigInt('1'),
+    });
+    console.error('testNft transfer to', to, transferResult);
+};
+
+const testLedger = async (agent: HttpAgent, accountId: string) => {
+    const ledger = createLedgerActor({ actorOptions: { agent } });
+    ledger.account_balance_dfx({ account: accountId }).then((d) => {
+        console.error('testLedger ledger balance', d);
+
+        ledger
+            .send_dfx({
+                to: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
+                fee: { e8s: BigInt('10000') },
+                memo: BigInt(0),
+                from_subaccount: [],
+                created_at_time: [],
+                amount: { e8s: BigInt('20000') },
+            })
+            .then((d) => {
+                console.error('testLedger ledger send', d);
+            });
+    });
 };
 
 const onSubLogin = async () => {
@@ -100,6 +153,10 @@ const onSubCall = async () => {
     const actor = createActor({ actorOptions: { agent: subAgent! } });
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
+
+    await testNft(subAgent!, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+    await testLedger(subAgent!, accountId); // 测试调用账本罐子
 };
 
 const onSubLogout = () => {

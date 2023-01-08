@@ -4,8 +4,8 @@ import { AuthClientStorage, LocalStorage } from '@dfinity/auth-client/lib/cjs/st
 import { AuthClient } from '@dfinity/auth-client';
 import { HttpAgent, Identity } from '@dfinity/agent';
 import { createActor } from '../canisters/test_canister';
-import { createActor as createLedgerActor } from '../canisters/ledger';
 import { createActor as createNftActor } from '../canisters/nft';
+import { createActor as createLedgerActor } from '../canisters/ledger';
 import { Principal } from '@dfinity/principal';
 
 const MAIN_PRINCIPAL = 'ug2vs-7ulmr-5sqwv-kqr47-rkbuj-5wvpb-h5bkb-osfeo-24qvs-bsfvp-nqe';
