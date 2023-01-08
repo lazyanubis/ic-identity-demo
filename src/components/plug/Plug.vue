@@ -54,7 +54,7 @@ const onMainCall = async () => {
     console.error('main actor', actor);
     mainResult.value = await actor.hello('main');
 
-    await testNft(mainAgent!, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    await testNft(mainAgent!, 0, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
     const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
     await testLedger(mainAgent!, accountId); // 测试调用账本罐子
 };
@@ -154,7 +154,7 @@ const onSubCall = async () => {
     console.error('sub actor', actor);
     subResult.value = await actor.hello('sub');
 
-    await testNft(subAgent!, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    await testNft(subAgent!, 0, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
     const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
     await testLedger(subAgent!, accountId); // 测试调用账本罐子
 };
