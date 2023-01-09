@@ -13,16 +13,31 @@ import {
 } from '../canisters/ledger';
 import { Principal } from '@dfinity/principal';
 import { ActorCreator, getActorCreatorByPlug, PlugInterface } from '../common';
+import { ActorSubclass } from '@dfinity/agent';
 
 const MAIN_PRINCIPAL = '37pej-6oomu-uuzj2-ecmh3-ibavk-qtrkn-bhz4v-vgusr-z7k4r-yatqo-uae';
 const SUB_PRINCIPAL = 's3zx7-klabw-jftqa-voxdq-wmf2s-l5pdg-zxjkl-tnpfq-pcajr-tgn2d-rae';
 
+let main:
+    | {
+          createActor: ActorCreator;
+          test: ActorSubclass<_SERVICE>;
+          nft: ActorSubclass<_SERVICE_NFT>;
+          ledger: ActorSubclass<_SERVICE_LEDGER>;
+      }
+    | undefined = undefined;
 const mainPrincipal = ref<string>('');
-let mainCreateActor: ActorCreator | undefined = undefined;
 const mainResult = ref<string>('');
 
+let sub:
+    | {
+          createActor: ActorCreator;
+          test: ActorSubclass<_SERVICE>;
+          nft: ActorSubclass<_SERVICE_NFT>;
+          ledger: ActorSubclass<_SERVICE_LEDGER>;
+      }
+    | undefined = undefined;
 const subPrincipal = ref<string>('');
-let subCreateActor: ActorCreator | undefined = undefined;
 const subResult = ref<string>('');
 
 const onMainLogin = async () => {
@@ -30,26 +45,14 @@ const onMainLogin = async () => {
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
-    const onConnectionUpdate = () => {
-        console.error('onConnectionUpdate', plug.sessionManager);
-        console.error('onConnectionUpdate', plug.sessionManager.sessionData?.principalId);
-        console.error('onConnectionUpdate', plug.sessionManager.sessionData?.accountId);
-        const agent = plug.sessionManager.sessionData?.agent;
-        if (agent) {
-            mainCreateActor = getActorCreatorByPlug(plug);
-            mainCreateActor<_SERVICE>(idlFactory, canisterId).then((actor) => {
-                console.error('onConnectionUpdate actor', actor);
-                actor.hello('onConnectionUpdate').then((d) => {
-                    console.error('onConnectionUpdate', d);
+    console.error('main plug', plug);
 
-                    // 测试调用复杂罐子
-                    testNft(mainCreateActor!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
-                        const accountId = plug.sessionManager.sessionData?.accountId;
-                        testLedger(mainCreateActor!, accountId); // 测试调用账本罐子
-                    });
-                });
-            });
-        }
+    const onConnectionUpdate = () => {
+        console.error('main onConnectionUpdate', plug.sessionManager);
+        console.error('main onConnectionUpdate', plug.sessionManager.sessionData?.principalId);
+        console.error('main onConnectionUpdate', plug.sessionManager.sessionData?.accountId);
+        const agent = plug.sessionManager.sessionData?.agent;
+        if (agent) afterMainLogin(plug);
     };
     plug.sessionManager.onConnectionUpdate = onConnectionUpdate;
 
@@ -57,38 +60,42 @@ const onMainLogin = async () => {
     // 主调用要尝试从缓存中查找上次的 agent
     // 目标位置 window.ic.plug.sessionManager.sessionData，不调用 isConnected方法的话，是 null
 
-    console.error('before isConnected', plug.sessionManager.sessionData);
+    console.error('main before isConnected', plug.sessionManager.sessionData);
     const isConnected = await new Promise(async (resolve) => {
         const timeout = setTimeout(() => resolve(false), 333);
         const connected = await plug.isConnected();
         clearTimeout(timeout);
         resolve(connected);
     });
-    console.error('isConnected', isConnected);
+    console.error('main isConnected', isConnected);
     if (isConnected) {
         console.error(
-            'after isConnected and connected',
+            'main after isConnected and connected',
             plug.sessionManager.sessionData?.principalId,
         );
         console.error(
-            'after isConnected and connected',
+            'main after isConnected and connected',
             plug.sessionManager.sessionData?.accountId,
         );
-        console.error('after isConnected and connected', plug.sessionManager);
+        console.error('main after isConnected and connected', plug.sessionManager);
         const agent = plug.sessionManager.sessionData.agent;
         if (agent) {
-            console.error('using session data');
-            afterMainLogin(plug);
+            console.error('main using session data');
+            afterMainLogin(plug).catch((e) => {
+                console.error('e', e);
+            });
             return;
         }
     }
 
-    console.error('plug', plug, plug.agent);
-
     const whitelist: string[] = ['ipcaz-wiaaa-aaaai-qoy4q-cai', 'ryjl3-tyaaa-aaaaa-aaaba-cai'];
 
     // timeout 也无法防止用户关闭弹窗
-    plug.requestConnect({ whitelist, onConnectionUpdate, timeout: 60000 })
+    plug.requestConnect({
+        whitelist,
+        // onConnectionUpdate,
+        timeout: 60000,
+    })
         .then((d) => {
             console.error('public key', d);
             const agent = plug.agent;
@@ -123,7 +130,13 @@ const onMainLogin = async () => {
 const afterMainLogin = async (plug: PlugInterface) => {
     const principal = (await plug.sessionManager.sessionData.agent.getPrincipal()).toText();
 
-    mainCreateActor = getActorCreatorByPlug(plug);
+    const createActor = getActorCreatorByPlug(plug);
+    main = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
     mainPrincipal.value = principal;
     mainResult.value = '';
 
@@ -132,14 +145,31 @@ const afterMainLogin = async (plug: PlugInterface) => {
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
-    console.error('main actor', actor);
-    mainResult.value = await actor.hello('main');
+    console.error('main actor test', main!.test);
+    mainResult.value = await main!.test.hello('main');
 
     // 测试调用复杂罐子
-    testNft(mainCreateActor!, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+    testNft(main!.nft, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
         const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-        testLedger(mainCreateActor!, accountId); // 测试调用账本罐子
+        testLedger(main!.ledger, accountId); // 测试调用账本罐子
+    });
+};
+const onMainCall2 = async () => {
+    const createActor = main!.createActor;
+    const main2 = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
+    mainResult.value = '';
+    console.error('main2 actor test', main2.test);
+    mainResult.value = await main2.test.hello('main2');
+
+    // 测试调用复杂罐子
+    testNft(main2.nft, 0, mainPrincipal.value, SUB_PRINCIPAL).finally(() => {
+        const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+        testLedger(main2.ledger, accountId); // 测试调用账本罐子
     });
 };
 
@@ -151,13 +181,17 @@ const onMainLogout = () => {
 };
 
 const afterMainLogout = () => {
-    mainCreateActor = undefined;
+    main = undefined;
     mainPrincipal.value = '';
     mainResult.value = '';
 };
 
-const testNft = async (createActor: ActorCreator, index: number, principal: string, to: string) => {
-    const nft = await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft);
+const testNft = async (
+    nft: ActorSubclass<_SERVICE_NFT>,
+    index: number,
+    principal: string,
+    to: string,
+) => {
     const token = await nft.calcTokenIdentifier(index);
     console.error('testNft token', index, token, nft);
     const balanceResult: any = await nft.balance({
@@ -181,8 +215,7 @@ const testNft = async (createActor: ActorCreator, index: number, principal: stri
     console.error('testNft transfer to', to, transferResult);
 };
 
-const testLedger = async (createActor: ActorCreator, accountId: string) => {
-    const ledger = await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger);
+const testLedger = async (ledger: ActorSubclass<_SERVICE_LEDGER>, accountId: string) => {
     ledger.account_balance_dfx({ account: accountId }).then((d) => {
         console.error('testLedger ledger balance', d);
 
@@ -206,17 +239,42 @@ const onSubLogin = async () => {
 
     if (plug === undefined) throw new Error('plug can not be undefined');
 
-    // ? 需要保存上次登录的缓存，登录完成后再进行恢复
-    // console.error('last', plug.sessionManager.sessionData);
-    // console.error('last', plug.sessionManager.sessionData?.principalId);
-    // const isConnected = await new Promise(async (resolve) => {
-    //     const timeout = setTimeout(() => resolve(false), 333);
-    //     const connected = await plug.isConnected();
-    //     clearTimeout(timeout);
-    //     resolve(connected);
-    // });
-    // const sessionData = plug.sessionManager.sessionData;
-    // plug.sessionManager.sessionData = null; // 删除上次的结果
+    console.error('sub plug', plug);
+
+    const onConnectionUpdate = () => {
+        console.error('sub onConnectionUpdate', plug.sessionManager);
+        console.error('sub onConnectionUpdate', plug.sessionManager.sessionData?.principalId);
+        console.error('sub onConnectionUpdate', plug.sessionManager.sessionData?.accountId);
+        const agent = plug.sessionManager.sessionData?.agent;
+        if (agent) afterSubLogin(plug);
+    };
+    plug.sessionManager.onConnectionUpdate = onConnectionUpdate;
+
+    console.error('sub before isConnected', plug.sessionManager.sessionData);
+    const isConnected = await new Promise(async (resolve) => {
+        const timeout = setTimeout(() => resolve(false), 333);
+        const connected = await plug.isConnected();
+        clearTimeout(timeout);
+        resolve(connected);
+    });
+    console.error('sub isConnected', isConnected);
+    if (isConnected) {
+        console.error(
+            'sub after isConnected and connected',
+            plug.sessionManager.sessionData?.principalId,
+        );
+        console.error(
+            'sub after isConnected and connected',
+            plug.sessionManager.sessionData?.accountId,
+        );
+        console.error('sub after isConnected and connected', plug.sessionManager);
+        const agent = plug.sessionManager.sessionData.agent;
+        if (agent) {
+            console.error('sub using session data');
+            afterSubLogin(plug);
+            return;
+        }
+    }
 
     console.error('plug', plug, plug.agent);
 
@@ -248,7 +306,13 @@ const onSubLogin = async () => {
 const afterSubLogin = async (plug: PlugInterface) => {
     const principal = (await plug.sessionManager.sessionData.agent.getPrincipal()).toText();
 
-    subCreateActor = getActorCreatorByPlug(plug);
+    const createActor = getActorCreatorByPlug(plug);
+    sub = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
     subPrincipal.value = principal;
     subResult.value = '';
 
@@ -257,14 +321,31 @@ const afterSubLogin = async (plug: PlugInterface) => {
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
-    console.error('sub actor', actor);
-    subResult.value = await actor.hello('sub');
+    console.error('sub2 actor test', sub!.test);
+    subResult.value = await sub!.test.hello('sub2');
 
     // 测试调用复杂罐子
-    testNft(subCreateActor!, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
+    testNft(sub!.nft, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
         const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
-        testLedger(subCreateActor!, accountId); // 测试调用账本罐子
+        testLedger(sub!.ledger, accountId); // 测试调用账本罐子
+    });
+};
+const onSubCall2 = async () => {
+    const createActor = sub!.createActor;
+    const sub2 = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
+    subResult.value = '';
+    console.error('sub actor test', sub2.test);
+    subResult.value = await sub2.test.hello('sub');
+
+    // 测试调用复杂罐子
+    testNft(sub2.nft, 0, subPrincipal.value, MAIN_PRINCIPAL).finally(() => {
+        const accountId = (window as any).ic?.plug?.sessionManager.sessionData?.accountId;
+        testLedger(sub2.ledger, accountId); // 测试调用账本罐子
     });
 };
 
@@ -276,7 +357,7 @@ const onSubLogout = () => {
 };
 
 const afterSubLogout = () => {
-    subCreateActor = undefined;
+    sub = undefined;
     subPrincipal.value = '';
     subResult.value = '';
 };
@@ -290,8 +371,9 @@ const afterSubLogout = () => {
             <span>{{ mainResult }}</span>
         </div>
         <div class="main-login login">
-            <div @click="onMainLogin">登录</div>
+            <div v-if="!mainPrincipal" @click="onMainLogin">登录</div>
             <div v-if="mainPrincipal" @click="onMainCall">调用方法</div>
+            <div v-if="mainPrincipal" @click="onMainCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="mainPrincipal" @click="onMainLogout">注销</div>
         </div>
         <hr />
@@ -301,8 +383,9 @@ const afterSubLogout = () => {
             <span>{{ subResult }}</span>
         </div>
         <div class="sub-login login">
-            <div @click="onSubLogin">登录</div>
+            <div v-if="!subPrincipal" @click="onSubLogin">登录</div>
             <div v-if="subPrincipal" @click="onSubCall">调用方法</div>
+            <div v-if="subPrincipal" @click="onSubCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="subPrincipal" @click="onSubLogout">注销</div>
         </div>
     </div>
