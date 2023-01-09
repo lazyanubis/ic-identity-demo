@@ -16,6 +16,7 @@ import {
 import { Principal } from '@dfinity/principal';
 import { ActorCreator, getActorCreatorByIC } from '../common';
 import { PermissionsType } from '@astrox/sdk-web/build/types';
+import { ActorSubclass } from '@dfinity/agent';
 
 const MAIN_PRINCIPAL = '5wrwy-phdry-6stu5-smhhy-3ngf3-vl2ng-kfosc-bwu6c-kwil6-sgy4e-dqe';
 const SUB_PRINCIPAL = 'oc66n-sapan-wpjo2-qolwl-jph74-p42yv-ingdj-xcn6i-afotu-hhaeh-5qe';
@@ -65,21 +66,34 @@ class LocalStorage implements AbstractedClientStorage {
     }
 }
 
-// 默认登录凭证是存在浏览器 IndexedDB 里面的 auth-client-db-http://xxx 里面的
-
 let mainIC: IC | undefined = undefined;
-let mainCreateActor: ActorCreator | undefined = undefined;
+let main:
+    | {
+          createActor: ActorCreator;
+          test: ActorSubclass<_SERVICE>;
+          nft: ActorSubclass<_SERVICE_NFT>;
+          ledger: ActorSubclass<_SERVICE_LEDGER>;
+      }
+    | undefined = undefined;
 const mainPrincipal = ref<string>('');
 const mainResult = ref<string>('');
 
 let subIC: IC | undefined = undefined;
-let subCreateActor: ActorCreator | undefined = undefined;
+let sub:
+    | {
+          createActor: ActorCreator;
+          test: ActorSubclass<_SERVICE>;
+          nft: ActorSubclass<_SERVICE_NFT>;
+          ledger: ActorSubclass<_SERVICE_LEDGER>;
+      }
+    | undefined = undefined;
 const subPrincipal = ref<string>('');
 const subResult = ref<string>('');
 
 const onMainLogin = async () => {
+    const storage = new LocalStorage('astrox-main-'); // 默认是 astrox-
     const instance = await IC.create({
-        storage: new LocalStorage('astrox-main-'),
+        storage,
         permissions: [PermissionsType.identity],
         maxTimeToLive: BigInt('600000000000'), // 纳秒
         useFrame: document.body.clientWidth > 768 ? true : undefined,
@@ -97,7 +111,7 @@ const onMainLogin = async () => {
         console.error('main isAuthenticated', authenticated);
         if (!authenticated) {
             instance.connect({
-                storage: new LocalStorage('astrox-main-'),
+                storage,
                 permissions: [PermissionsType.identity],
                 maxTimeToLive: BigInt('600000000000'), // 纳秒
                 useFrame: !(window.innerWidth < 768),
@@ -118,10 +132,16 @@ const onMainLogin = async () => {
     });
 };
 
-const afterMainLogin = () => {
+const afterMainLogin = async () => {
     const principal = mainIC!.principal.toText();
 
-    mainCreateActor = getActorCreatorByIC(mainIC!);
+    const createActor = getActorCreatorByIC(mainIC!);
+    main = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
     mainPrincipal.value = principal;
     mainResult.value = '';
 
@@ -130,12 +150,26 @@ const afterMainLogin = () => {
 
 const onMainCall = async () => {
     mainResult.value = '';
-    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
-    console.error('main actor', actor);
-    mainResult.value = await actor.hello('main');
+    console.error('main actor test', main!.test);
+    mainResult.value = await main!.test.hello('main');
 
-    await testNft(mainCreateActor!, 2, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(mainCreateActor!); // 测试调用账本罐子
+    await testNft(main!.nft, 2, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(main!.ledger); // 测试调用账本罐子
+};
+const onMainCall2 = async () => {
+    const createActor = main!.createActor;
+    const main2 = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
+    mainResult.value = '';
+    console.error('main2 actor test', main2.test);
+    mainResult.value = await main2.test.hello('main2');
+
+    await testNft(main2.nft, 2, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(main2.ledger); // 测试调用账本罐子
 };
 
 const onMainLogout = () => {
@@ -143,13 +177,17 @@ const onMainLogout = () => {
 };
 
 const afterMainLogout = () => {
-    mainCreateActor = undefined;
+    main = undefined;
     mainPrincipal.value = '';
     mainResult.value = '';
 };
 
-const testNft = async (createActor: ActorCreator, index: number, principal: string, to: string) => {
-    const nft = await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft);
+const testNft = async (
+    nft: ActorSubclass<_SERVICE_NFT>,
+    index: number,
+    principal: string,
+    to: string,
+) => {
     const token = await nft.calcTokenIdentifier(index);
     console.error('testNft token', index, token, nft);
     const balanceResult: any = await nft.balance({
@@ -173,8 +211,7 @@ const testNft = async (createActor: ActorCreator, index: number, principal: stri
     console.error('testNft transfer to', to, transferResult);
 };
 
-const testLedger = async (createActor: ActorCreator) => {
-    const ledger = await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger);
+const testLedger = async (ledger: ActorSubclass<_SERVICE_LEDGER>) => {
     ledger
         .account_balance_dfx({
             account: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
@@ -198,8 +235,9 @@ const testLedger = async (createActor: ActorCreator) => {
 };
 
 const onSubLogin = async () => {
+    const storage = new LocalStorage('astrox-sub-'); // 默认是 astrox-
     const instance = await IC.create({
-        storage: new LocalStorage('astrox-sub-'),
+        storage,
         useFrame: document.body.clientWidth > 768 ? true : undefined,
         // walletProviderUrl: '',
         onAuthenticated: async (ic: IC) => {
@@ -215,7 +253,7 @@ const onSubLogin = async () => {
         console.error('sub isAuthenticated', authenticated);
         if (!authenticated) {
             instance.connect({
-                storage: new LocalStorage('astrox-sub-'),
+                storage,
                 useFrame: !(window.innerWidth < 768),
                 signerProviderUrl: 'https://63k2f-nyaaa-aaaah-aakla-cai.raw.ic0.app/signer',
                 // walletProviderUrl: '',
@@ -233,10 +271,16 @@ const onSubLogin = async () => {
     });
 };
 
-const afterSubLogin = () => {
+const afterSubLogin = async () => {
     const principal = subIC!.principal.toText();
 
-    subCreateActor = getActorCreatorByIC(subIC!);
+    const createActor = getActorCreatorByIC(subIC!);
+    sub = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
     subPrincipal.value = principal;
     subResult.value = '';
 
@@ -245,12 +289,26 @@ const afterSubLogin = () => {
 
 const onSubCall = async () => {
     subResult.value = '';
-    const actor = await subCreateActor!<_SERVICE>(idlFactory, canisterId);
-    console.error('sub actor', actor);
-    subResult.value = await actor.hello('sub');
+    console.error('sub2 actor test', sub!.test);
+    subResult.value = await sub!.test.hello('sub2');
 
-    await testNft(subCreateActor!, 2, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(subCreateActor!); // 测试调用账本罐子
+    await testNft(sub!.nft, 2, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(sub!.ledger); // 测试调用账本罐子
+};
+const onSubCall2 = async () => {
+    const createActor = sub!.createActor;
+    const sub2 = {
+        createActor,
+        test: await createActor<_SERVICE>(idlFactory, canisterId),
+        nft: await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft),
+        ledger: await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger),
+    };
+    subResult.value = '';
+    console.error('sub actor test', sub2.test);
+    subResult.value = await sub2.test.hello('sub');
+
+    await testNft(sub2.nft, 2, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
+    await testLedger(sub2.ledger); // 测试调用账本罐子
 };
 
 const onSubLogout = () => {
@@ -258,7 +316,7 @@ const onSubLogout = () => {
 };
 
 const afterSubLogout = () => {
-    subCreateActor = undefined;
+    sub = undefined;
     subPrincipal.value = '';
     subResult.value = '';
 };
@@ -272,8 +330,9 @@ const afterSubLogout = () => {
             <span>{{ mainResult }}</span>
         </div>
         <div class="main-login login">
-            <div @click="onMainLogin">登录</div>
+            <div v-if="!mainPrincipal" @click="onMainLogin">登录</div>
             <div v-if="mainPrincipal" @click="onMainCall">调用方法</div>
+            <div v-if="mainPrincipal" @click="onMainCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="mainPrincipal" @click="onMainLogout">注销</div>
         </div>
         <hr />
@@ -283,8 +342,9 @@ const afterSubLogout = () => {
             <span>{{ subResult }}</span>
         </div>
         <div class="sub-login login">
-            <div @click="onSubLogin">登录</div>
+            <div v-if="!subPrincipal" @click="onSubLogin">登录</div>
             <div v-if="subPrincipal" @click="onSubCall">调用方法</div>
+            <div v-if="subPrincipal" @click="onSubCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="subPrincipal" @click="onSubLogout">注销</div>
         </div>
     </div>

@@ -260,7 +260,6 @@ const onSubCall = async () => {
     await testNft(sub!.nft, 1, subPrincipal.value, MAIN_PRINCIPAL); // 测试调用复杂罐子
     await testLedger(sub!.ledger); // 测试调用账本罐子
 };
-
 const onSubCall2 = async () => {
     const createActor = sub!.createActor;
     const sub2 = {
@@ -298,7 +297,7 @@ const afterSubLogout = () => {
         <div class="main-login login">
             <div v-if="!mainPrincipal" @click="onMainLogin">登录</div>
             <div v-if="mainPrincipal" @click="onMainCall">调用方法</div>
-            <div v-if="mainPrincipal" @click="onMainCall2">调用方法 - 重新获取 Actor</div>
+            <div v-if="mainPrincipal" @click="onMainCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="mainPrincipal" @click="onMainLogout">注销</div>
         </div>
         <hr />
@@ -310,7 +309,7 @@ const afterSubLogout = () => {
         <div class="sub-login login">
             <div v-if="!subPrincipal" @click="onSubLogin">登录</div>
             <div v-if="subPrincipal" @click="onSubCall">调用方法</div>
-            <div v-if="subPrincipal" @click="onSubCall2">调用方法 - 重新获取 Actor</div>
+            <div v-if="subPrincipal" @click="onSubCall2">调用方法 - 重新生成 Actor</div>
             <div v-if="subPrincipal" @click="onSubLogout">注销</div>
         </div>
     </div>
