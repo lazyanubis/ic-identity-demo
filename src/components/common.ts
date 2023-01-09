@@ -1,18 +1,20 @@
-import { InterfaceFactory } from '@dfinity/candid/lib/cjs/idl';
+import { IDL } from '@dfinity/candid';
 import { Actor, ActorSubclass, HttpAgent } from '@dfinity/agent';
 import { IC } from '@astrox/sdk-web';
 
 export type ActorCreator = <T>(
-    idlFactory: InterfaceFactory,
+    idlFactory: IDL.InterfaceFactory,
     canisterId: string,
 ) => Promise<ActorSubclass<T>>;
 
+// Internet Identity 提供 agent
 export const getActorCreatorByAgent = (agent: HttpAgent): ActorCreator => {
-    return async (idlFactory: InterfaceFactory, canisterId: string) => {
+    return async (idlFactory: IDL.InterfaceFactory, canisterId: string) => {
         return Actor.createActor(idlFactory, { agent, canisterId });
     };
 };
 
+// Plug 的接口类型
 export interface PlugInterface {
     isConnected: () => Promise<boolean>;
     requestConnect: (_?: {
@@ -35,12 +37,13 @@ export interface PlugInterface {
     agent?: HttpAgent;
     createActor: <T>(_: {
         canisterId: string;
-        interfaceFactory: InterfaceFactory;
+        interfaceFactory: IDL.InterfaceFactory;
     }) => Promise<ActorSubclass<T>>;
 }
 
+// Plug 提供 plug
 export const getActorCreatorByPlug = (plug: PlugInterface): ActorCreator => {
-    return async (idlFactory: InterfaceFactory, canisterId: string) => {
+    return async (idlFactory: IDL.InterfaceFactory, canisterId: string) => {
         return await plug.createActor({
             canisterId,
             interfaceFactory: idlFactory,
@@ -48,30 +51,24 @@ export const getActorCreatorByPlug = (plug: PlugInterface): ActorCreator => {
     };
 };
 
+// Astrox ME 提供 IC
 export const getActorCreatorByIC = (ic: IC): ActorCreator => {
     const identity = ic.identity;
     const agent = new HttpAgent({
         host: 'https://boundary.ic0.app/', // 默认调用线上的接口
         identity: identity as any,
     });
-    return async (idlFactory: InterfaceFactory, canisterId: string) => {
+    return async (idlFactory: IDL.InterfaceFactory, canisterId: string) => {
         return Actor.createActor(idlFactory, { agent, canisterId });
     };
     // return async (idlFactory: InterfaceFactory, canisterId: string) => {
-    //     return await ic.createActor(idlFactory as any, canisterId);
+    //     return await ic.createActor(idlFactory, canisterId);
     // };
 };
 
+// connect2ic 提供 activeProvider
 export const getActorCreatorByActiveProvider = (activeProvider: any): ActorCreator => {
-    // const identity = ic.identity;
-    // const agent = new HttpAgent({
-    //     host: 'https://boundary.ic0.app/', // 默认调用线上的接口
-    //     identity: identity as any,
-    // });
-    // return async (idlFactory: InterfaceFactory, canisterId: string) => {
-    //     return Actor.createActor(idlFactory, { agent, canisterId });
-    // };
-    return async (idlFactory: InterfaceFactory, canisterId: string) => {
+    return async (idlFactory: IDL.InterfaceFactory, canisterId: string) => {
         const { value: actor } = await activeProvider.createActor(canisterId, idlFactory);
         return actor;
     };
