@@ -19,6 +19,8 @@
         "@babel/core": "^7.18.5",
         "@babel/eslint-parser": "^7.18.2",
         "@babel/eslint-plugin": "^7.17.7",
+        "@connect2ic/core": "^0.2.0-beta.20",
+        "@connect2ic/vue": "^0.2.0-beta.20",
         "@dfinity/agent": "^0.15.1",
         "@dfinity/auth-client": "^0.15.1",
         "@dfinity/candid": "^0.15.1",

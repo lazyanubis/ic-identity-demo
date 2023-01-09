@@ -61,3 +61,18 @@ export const getActorCreatorByIC = (ic: IC): ActorCreator => {
     //     return await ic.createActor(idlFactory as any, canisterId);
     // };
 };
+
+export const getActorCreatorByActiveProvider = (activeProvider: any): ActorCreator => {
+    // const identity = ic.identity;
+    // const agent = new HttpAgent({
+    //     host: 'https://boundary.ic0.app/', // 默认调用线上的接口
+    //     identity: identity as any,
+    // });
+    // return async (idlFactory: InterfaceFactory, canisterId: string) => {
+    //     return Actor.createActor(idlFactory, { agent, canisterId });
+    // };
+    return async (idlFactory: InterfaceFactory, canisterId: string) => {
+        const { value: actor } = await activeProvider.createActor(canisterId, idlFactory);
+        return actor;
+    };
+};

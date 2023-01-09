@@ -3,9 +3,9 @@ import { ref } from 'vue';
 import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 import PlugVue from './components/plug/Plug.vue';
 import AstroxMeVue from './components/astrox/AstroxMe.vue';
+import WrappedConnect2ICVue from './components/connect2ic/WrappedConnect2IC.vue';
 
-
-type SupportType = 'internet-identity' | 'plug' | 'astrox';
+type SupportType = 'internet-identity' | 'plug' | 'astrox' | 'connect2ic';
 
 const setCurrent = (current: SupportType) => localStorage.setItem('__current__', current);
 const getCurrent = (): SupportType => {
@@ -53,6 +53,7 @@ const cleanSessionStorage = () => {
                 <option value="internet-identity">Internet Identity</option>
                 <option value="plug">Plug</option>
                 <option value="astrox">Astrox ME</option>
+                <option value="connect2ic">Connect2IC</option>
             </select>
         </div>
         <div class="item">
@@ -64,6 +65,9 @@ const cleanSessionStorage = () => {
             </template>
             <template v-else-if="current === 'astrox'">
                 <AstroxMeVue />
+            </template>
+            <template v-else-if="current === 'connect2ic'">
+                <WrappedConnect2ICVue />
             </template>
         </div>
     </div>
