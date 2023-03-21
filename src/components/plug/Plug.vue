@@ -93,7 +93,7 @@ const onMainLogin = async () => {
     // timeout 也无法防止用户关闭弹窗
     plug.requestConnect({
         whitelist,
-        // onConnectionUpdate,
+        onConnectionUpdate,
         timeout: 60000,
     })
         .then((d) => {

@@ -31,19 +31,19 @@ class LocalStorage implements AbstractedClientStorage {
         });
     }
 }
-
+const astroxProvider = (window as any).icx
+    ? new ICX({
+          providerUrl: 'https://63k2f-nyaaa-aaaah-aakla-cai.raw.ic0.app/',
+          storage: new LocalStorage('astrox-main-'),
+      })
+    : new AstroX({
+          providerUrl: 'https://63k2f-nyaaa-aaaah-aakla-cai.raw.ic0.app/',
+          delegationModes: ['global'],
+          storage: new LocalStorage('astrox-main-'),
+      });
 const client = createClient({
     providers: [
-        (window as any).icx
-            ? new ICX({
-                  providerUrl: 'https://63k2f-nyaaa-aaaah-aakla-cai.raw.ic0.app/',
-                  storage: new LocalStorage('astrox-main-'),
-              })
-            : new AstroX({
-                  providerUrl: 'https://63k2f-nyaaa-aaaah-aakla-cai.raw.ic0.app/',
-                  delegationModes: ['global'],
-                  storage: new LocalStorage('astrox-main-'),
-              }),
+        astroxProvider,
         new PlugWallet(),
         new InternetIdentity({
             storage: new IILocalStorage('internet-identity-2:'),
@@ -59,6 +59,13 @@ const client = createClient({
         ],
     },
 });
+client.on('init', () => {
+    console.error('init');
+});
+client.on('connect', () => {
+    console.error('connect');
+});
+client.connect(astroxProvider);
 </script>
 
 <template>
