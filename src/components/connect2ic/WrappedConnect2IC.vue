@@ -60,10 +60,10 @@ const client = createClient({
     },
 });
 client.on('init', () => {
-    console.error('init');
+    console.error('init', new Date());
 });
 client.on('connect', () => {
-    console.error('connect');
+    console.error('connect', new Date());
 });
 client.connect(astroxProvider);
 </script>

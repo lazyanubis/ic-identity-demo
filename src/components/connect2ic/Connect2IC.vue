@@ -34,7 +34,10 @@ watch(
 watch(
     () => isConnected.value,
     () => {
-        console.error('isConnected', isConnected.value);
+        console.error('isConnected', isConnected.value, new Date());
+    },
+    {
+        immediate: true,
     },
 );
 watch(
