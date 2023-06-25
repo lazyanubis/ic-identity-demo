@@ -7,4 +7,5 @@ export default defineConfig({
     define: {
         'process.env.NODE_ENV': JSON.stringify('production'),
     },
+    server: { hmr: true, port: 8080, host: '0.0.0.0' },
 });
