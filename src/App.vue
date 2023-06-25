@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { provide, readonly, ref } from 'vue';
 import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 import PlugVue from './components/plug/Plug.vue';
 import AstroxMeVue from './components/astrox/AstroxMe.vue';
 import WrappedConnect2ICVue from './components/connect2ic/WrappedConnect2IC.vue';
+import { HttpAgent } from '@dfinity/agent';
+import HelloWorldVue from './components/HelloWorld.vue';
+import { ActorCreator } from './components/common';
 
 type SupportType = 'internet-identity' | 'plug' | 'astrox' | 'connect2ic';
 
@@ -44,6 +47,31 @@ const cleanSessionStorage = () => {
         localStorage.removeItem(key);
     }
 };
+
+const setCurrent2 = (current2: 'no-cache' | 'cached') =>
+    localStorage.setItem('__current2__', current2);
+const getCurrent2 = (): 'no-cache' | 'cached' => {
+    const c = localStorage.getItem('__current2__');
+    if (c === null) {
+        setCurrent2('no-cache');
+        return getCurrent2();
+    }
+    return c as 'no-cache' | 'cached';
+};
+
+const current2 = ref<'no-cache' | 'cached'>(getCurrent2());
+
+const onCurrent2Changed = () => {
+    console.error('onCurrent2Changed ->', current2.value);
+
+    setCurrent2(current2.value);
+
+    // cleanLocalStorage();
+    // cleanSessionStorage();
+};
+const creator = ref<ActorCreator>();
+
+provide('SET_ACTOR_CREATOR', (c: ActorCreator) => (creator.value = c));
 </script>
 
 <template>
@@ -70,6 +98,13 @@ const cleanSessionStorage = () => {
                 <WrappedConnect2ICVue />
             </template>
         </div>
+        <div class="header">
+            <select v-model="current2" @change="onCurrent2Changed">
+                <option value="no-cache">NoCache</option>
+                <option value="cached">Cached</option>
+            </select>
+        </div>
+        <HelloWorldVue :creator="creator" :cached="current2" />
     </div>
 </template>
 

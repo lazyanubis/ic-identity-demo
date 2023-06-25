@@ -1,273 +1,203 @@
-type AllowanceArgs = record { token : text; owner : User; spender : principal };
-type ApproveArgs = record {
-  token : text;
-  subaccount : opt vec nat8;
-  allowance : nat;
-  spender : principal;
-};
-type BalanceArgs = record { token : text; user : User };
-type CapEvent = variant {
-  Approve : record {
-    balance : nat64;
-    owner : text;
-    index : nat64;
-    spender : text;
-  };
-  Mint : record { balance : nat64; owner : text; from : text; index : nat64 };
-  Sale : record {
-    balance : nat64;
-    owner : text;
-    price_decimals : nat64;
-    index : nat64;
-    price : nat64;
-    price_currency : text;
-    receiver : text;
-  };
-  Disbursement : record {
-    to : text;
-    block_index : nat64;
-    price_decimals : nat64;
-    from : text;
-    subaccount : vec nat8;
-    error : text;
-    account : text;
-    index : nat64;
-    price : nat64;
-    price_currency : text;
-  };
-  Transfer : record {
-    balance : nat64;
-    owner : text;
-    memo : vec nat8;
-    index : nat64;
-    receiver : text;
-  };
-};
-type CommonError = variant { InvalidToken : text; Other : text };
-type DetailValue = variant {
-  I64 : int64;
-  U64 : nat64;
-  Vec : vec DetailValue;
-  Slice : vec nat8;
-  TokenIdU64 : nat64;
-  Text : text;
-  True;
-  False;
-  Float : float64;
-  Principal : principal;
-};
-type Disbursement = record {
-  fee : nat64;
-  price_decimals : nat64;
-  subaccount : vec nat8;
-  address : text;
-  index : nat32;
-  price : nat64;
-  price_currency : text;
-};
-type EntrepotConfig = record {
-  escrow_delay : nat64;
-  sale_ended : bool;
-  sale_fees : vec record { text; nat64 };
-  next_subaccount : nat;
-  marketplace_open : int;
-};
-type EntrepotData = record {
-  token_settlements : vec record { nat32; Settlement };
-  disbursements : vec Disbursement;
-  transactions : vec Transaction;
-  config : EntrepotConfig;
-  token_listings : vec record { nat32; Listing };
-};
-type Event = record {
-  time : nat64;
-  operation : text;
-  details : vec record { text; DetailValue };
-  caller : principal;
-};
-type HeartbeatData = record {
-  last : nat64;
-  yumi_config : YumiConfig;
-  cap_events : vec CapEvent;
-  sleep : nat64;
-  ledger_canister_id : opt text;
-  changed : bool;
-};
-type HttpRequest = record {
-  url : text;
-  method : text;
-  body : vec nat8;
-  headers : vec record { text; text };
-};
-type HttpResponse = record {
-  body : vec nat8;
-  headers : vec record { text; text };
-  status_code : nat16;
-};
-type Listing = record { locked : opt int; seller : principal; price : nat64 };
-type ListingArgs = record {
-  token : text;
-  from_subaccount : opt vec nat8;
-  price : opt nat64;
-};
-type Metadata = record {
-  data : vec nat8;
-  header : vec record { text; MetadataValue };
-};
-type MetadataValue = variant {
-  Nat : nat;
-  Nat16 : nat16;
-  Nat32 : nat32;
-  Nat64 : nat64;
-  Blob : vec nat8;
-  Nat8 : nat8;
-  Text : text;
-};
-type MintArgs = record { to : User; metadata : opt vec nat8 };
-type MotokoResult = variant { ok : nat; err : CommonError };
-type MotokoResult_1 = variant { ok : text; err : CommonError };
-type MotokoResult_2 = variant {
-  ok : record { text; opt Listing };
-  err : CommonError;
-};
-type MotokoResult_3 = variant { ok; err : CommonError };
-type MotokoResult_4 = variant { ok : TokenMetadata; err : CommonError };
-type MotokoResult_5 = variant { ok : vec nat32; err : CommonError };
-type MotokoResult_6 = variant {
-  ok : vec record { nat32; opt Listing; opt vec nat8 };
-  err : CommonError;
-};
-type MotokoResult_7 = variant { ok : nat; err : TransferError };
-type NftMetadataArgsBySlice = record {
-  no : nat32;
-  first : bool;
-  token : text;
-  data : vec nat8;
-  finished : bool;
-  header : vec record { text; MetadataValue };
-};
-type NftView = record { id : nat32; owner : text; approved : opt principal };
-type Picture = record { data : vec nat8; content_type : text };
-type Settlement = record {
-  subaccount : vec nat8;
-  seller : principal;
-  buyer : text;
-  price : nat64;
-};
-type TokenMetadata = variant {
-  fungible : record {
-    decimals : nat8;
-    metadata : opt vec nat8;
-    name : text;
-    symbol : text;
-  };
-  nonfungible : record { metadata : opt vec nat8 };
-};
-type Transaction = record {
-  token : text;
-  time : int;
-  seller : principal;
-  buyer : text;
-  price : nat64;
-};
-type TransferArgs = record {
-  to : User;
-  token : text;
-  notify : bool;
-  from : User;
-  memo : vec nat8;
-  subaccount : opt vec nat8;
-  amount : nat;
-};
-type TransferError = variant {
-  CannotNotify : text;
-  InsufficientBalance;
-  InvalidToken : text;
-  Rejected;
-  Unauthorized : text;
-  Other : text;
-};
-type User = variant { "principal" : principal; address : text };
-type YumiConfig = record { yumi_canister_id : opt text; next_yumi_id : nat64 };
+type User = 
+ variant {
+   address: AccountIdentifier;
+   "principal": principal;
+ };
+type TransferResponse = 
+ variant {
+   err:
+    variant {
+      CannotNotify: AccountIdentifier;
+      InsufficientBalance;
+      InvalidToken: TokenIdentifier;
+      Other: text;
+      Rejected;
+      Unauthorized: AccountIdentifier;
+    };
+   ok: Balance;
+ };
+type TransferRequest = 
+ record {
+   amount: Balance;
+   from: User;
+   memo: Memo;
+   notify: bool;
+   subaccount: opt SubAccount;
+   to: User;
+   token: TokenIdentifier;
+ };
+type TokenIndex = nat32;
+type TokenIdentifier__1 = text;
+type TokenIdentifier = text;
+type Time = int;
+type SubAccount = vec nat8;
+type Result__1_2 = 
+ variant {
+   err: CommonError;
+   ok: Balance__1;
+ };
+type Result__1_1 = 
+ variant {
+   err: CommonError;
+   ok: AccountIdentifier__1;
+ };
+type Result__1 = 
+ variant {
+   err: CommonError;
+   ok: Metadata;
+ };
+type Result_2 = 
+ variant {
+   err: CommonError;
+   ok: Balance__1;
+ };
+type Result_1 = 
+ variant {
+   err: CommonError;
+   ok: vec TokenIndex;
+ };
+type Result = 
+ variant {
+   err: CommonError;
+   ok: vec record {
+             TokenIndex;
+             opt Listing;
+             opt blob;
+           };
+ };
+type MintRequest = 
+ record {
+   metadata: opt blob;
+   to: User;
+ };
+type Metadata = 
+ variant {
+   fungible:
+    record {
+      decimals: nat8;
+      metadata: opt blob;
+      name: text;
+      symbol: text;
+    };
+   nonfungible: record {metadata: opt blob;};
+ };
+type Memo = blob;
+type Listing = 
+ record {
+   locked: opt Time;
+   price: nat64;
+   seller: principal;
+ };
+type HttpResponse = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   status_code: nat16;
+ };
+type HttpRequest = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   method: text;
+   url: text;
+ };
+type HeaderField = 
+ record {
+   text;
+   text;
+ };
+type Extension = text;
+type CommonError__1 = 
+ variant {
+   InvalidToken: TokenIdentifier;
+   Other: text;
+ };
+type CommonError = 
+ variant {
+   InvalidToken: TokenIdentifier;
+   Other: text;
+ };
+type Balance__1 = nat;
+type BalanceResponse = 
+ variant {
+   err: CommonError__1;
+   ok: Balance;
+ };
+type BalanceRequest = 
+ record {
+   token: TokenIdentifier;
+   user: User;
+ };
+type Balance = nat;
+type ApproveRequest = 
+ record {
+   allowance: Balance;
+   spender: principal;
+   subaccount: opt SubAccount;
+   token: TokenIdentifier;
+ };
+type AllowanceRequest = 
+ record {
+   owner: User;
+   spender: principal;
+   token: TokenIdentifier;
+ };
+type AccountIdentifier__1 = text;
+type AccountIdentifier = text;
 service : {
-  __get_candid_interface_tmp_hack : () -> (text) query;
-  acceptCycles : () -> ();
-  allPayments : () -> (vec record { principal; vec vec nat8 }) query;
-  allSettlements : () -> (vec record { nat32; Settlement }) query;
-  allowance : (AllowanceArgs) -> (MotokoResult) query;
-  approve : (ApproveArgs) -> (bool);
-  availableCycles : () -> (nat) query;
-  balance : (BalanceArgs) -> (MotokoResult) query;
-  bearer : (text) -> (MotokoResult_1) query;
-  calcAccountId : (text) -> (text) query;
-  calcTokenIdentifier : (nat32) -> (text) query;
-  clearPayments : (principal, vec vec nat8) -> ();
-  cronDisbursements : () -> ();
-  cronSettlements : () -> ();
-  details : (text) -> (MotokoResult_2) query;
-  extensions : () -> (vec text) query;
-  getAllTokens : () -> (vec NftView) query;
-  getAllowances : () -> (vec record { nat32; principal }) query;
-  getDataCertificate : () -> (opt vec nat8) query;
-  getEntrepotData : () -> (EntrepotData) query;
-  getHashes : () -> (vec record { text; vec nat8 }) query;
-  getHeartbeatData : () -> (HeartbeatData) query;
-  getMetadata : () -> (vec record { nat32; TokenMetadata }) query;
-  getMinter : () -> (principal) query;
-  getMinters : () -> (vec principal) query;
-  getName : () -> (text) query;
-  getNextCapEventId : () -> (nat64) query;
-  getNftMetadata : (text, nat32) -> (opt Metadata) query;
-  getNftRarity : (text) -> (text) query;
-  getProperties : () -> (vec record { text; vec record { text; nat } }) query;
-  getRegistry : () -> (vec record { nat32; text }) query;
-  getSymbol : () -> (text) query;
-  getTemporaryData : () -> (vec nat8) query;
-  getTokens : () -> (vec record { nat32; TokenMetadata }) query;
-  getTokensByIds : (vec nat32) -> (vec record { nat32; TokenMetadata }) query;
-  getTransactionById : (nat64) -> (Event);
-  http_request : (HttpRequest) -> (HttpResponse) query;
-  initCap : (nat64, opt principal) -> ();
-  isMaintaining : () -> (bool) query;
-  isMinter : (principal) -> (bool) query;
-  list : (ListingArgs) -> (MotokoResult_3);
-  listings : () -> (vec record { nat32; Listing; TokenMetadata }) query;
-  lock : (text, nat64, text, vec nat8) -> (MotokoResult_1);
-  manualHeartbeat : () -> (opt vec CapEvent);
-  metadata : (text) -> (MotokoResult_4) query;
-  mintNFT : (MintArgs) -> ();
-  mintNFTsWithoutCap : (User, nat32) -> ();
-  payments : () -> (opt vec vec nat8) query;
-  pendingCronJobs : () -> (vec nat) query;
-  refreshNftsContent : (nat32, nat32, vec text) -> ();
-  refreshNftsHashes : (nat32, nat32, opt nat32) -> ();
-  removeMinter : (principal) -> ();
-  setEscrowDelay : (nat64) -> ();
-  setHeartbeatData : (bool, nat64, opt text, nat64) -> (HeartbeatData);
-  setLedgerCanisterIdOnlyForLocalTest : (opt text) -> ();
-  setLogo : (opt Picture) -> ();
-  setMaintaining : (bool) -> ();
-  setMinter : (principal) -> ();
-  setName : (text) -> ();
-  setNextCapEventId : (nat64) -> ();
-  setNftContent : (text, opt vec nat8) -> (bool);
-  setNftMetadata : (text, nat32, opt Metadata) -> (bool);
-  setNftMetadataBySlice : (NftMetadataArgsBySlice) -> (bool);
-  setNftRarity : (text, text) -> (bool);
-  setNftThumbnail : (nat32, opt Picture) -> ();
-  setSaleFees : (vec record { text; nat64 }) -> ();
-  setSymbol : (text) -> ();
-  setUpdatingPicture : (opt Picture) -> ();
-  setUpdatingPictureBySlice : (Picture, bool, bool) -> ();
-  settle : (text) -> (MotokoResult_3);
-  settlements : () -> (vec record { nat32; text; nat64 }) query;
-  stats : () -> (nat64, nat64, nat64, nat64, nat, nat, nat) query;
-  supply : (text) -> (MotokoResult) query;
-  toAddress : (text, nat) -> (text) query;
-  tokens : (text) -> (MotokoResult_5) query;
-  tokens_ext : (text) -> (MotokoResult_6) query;
-  transactions : () -> (vec Transaction) query;
-  transfer : (TransferArgs) -> (MotokoResult_7);
-  transferWithPrice : (TransferArgs, nat64, nat64, text) -> (MotokoResult_7);
-  viewDisbursements : () -> (vec Disbursement) query;
+  acceptCycles: () -> ();
+  allowance: (AllowanceRequest) -> (Result__1_2) query;
+  approve: (ApproveRequest) -> (bool);
+  approveAll: (vec ApproveRequest) -> (vec TokenIndex);
+  availableCycles: () -> (nat) query;
+  balance: (BalanceRequest) -> (BalanceResponse) query;
+  batchMintNFT: (vec MintRequest) -> (vec TokenIndex);
+  batchTransfer: (vec TransferRequest) -> (vec TransferResponse);
+  bearer: (TokenIdentifier__1) -> (Result__1_1) query;
+  clearProperties: () -> () oneway;
+  extensions: () -> (vec Extension) query;
+  getAllowances: () -> (vec record {
+                              TokenIndex;
+                              principal;
+                            }) query;
+  getMinter: () -> (principal) query;
+  getProperties: () -> (vec record {
+                              text;
+                              vec record {
+                                    text;
+                                    nat;
+                                  };
+                            }) query;
+  getRegistry: () -> (vec record {
+                            TokenIndex;
+                            AccountIdentifier__1;
+                          }) query;
+  getRootBucketId: () -> (opt text);
+  getTokens: () -> (vec record {
+                          TokenIndex;
+                          Metadata;
+                        }) query;
+  getTokensByIds: (vec TokenIndex) ->
+   (vec record {
+          TokenIndex;
+          Metadata;
+        }) query;
+  getTokensByProperties: (vec record {
+                                text;
+                                vec text;
+                              }) -> (vec record {
+                                           TokenIndex;
+                                           Metadata;
+                                         }) query;
+  http_request: (HttpRequest) -> (HttpResponse) query;
+  initCap: () -> (opt text);
+  initproperties: (TokenIndex, TokenIndex) -> ();
+  metadata: (TokenIdentifier__1) -> (Result__1) query;
+  mintNFT: (MintRequest) -> (TokenIndex);
+  setMinter: (principal) -> ();
+  supply: (TokenIdentifier__1) -> (Result_2) query;
+  tokens: (AccountIdentifier__1) -> (Result_1) query;
+  tokens_ext: (AccountIdentifier__1) -> (Result) query;
+  transfer: (TransferRequest) -> (TransferResponse);
+  updateNFTName: (text, text, TokenIndex, TokenIndex) -> ();
 }

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { inject, ref, watch } from 'vue';
 import { idlFactory, canisterId, _SERVICE } from '../canisters/test_canister';
 import {
     idlFactory as idlFactoryNft,
@@ -15,9 +15,9 @@ import { Principal } from '@dfinity/principal';
 import { ActorCreator, getActorCreatorByActiveProvider, getActorCreatorByAgent } from '../common';
 
 import { useConnect, useWallet } from '@connect2ic/vue';
+import { HttpAgent } from '@dfinity/agent';
 
-const MAIN_PRINCIPAL = 'ug2vs-7ulmr-5sqwv-kqr47-rkbuj-5wvpb-h5bkb-osfeo-24qvs-bsfvp-nqe';
-const SUB_PRINCIPAL = 'l6gbo-ofx6i-6ezfd-gcnt2-2l6bn-fgzfx-g7xoy-22ehb-ya55e-qcq2a-yae';
+const setCreator = inject<(creator: ActorCreator | undefined) => void>('SET_ACTOR_CREATOR')!;
 
 const { isConnected, connect, activeProvider, provider, principal, disconnect } = useConnect();
 const [walletProvider] = useWallet();
@@ -29,6 +29,7 @@ watch(
         mainCreateActor = activeProvider
             ? getActorCreatorByActiveProvider(activeProvider)
             : undefined;
+        setCreator(mainCreateActor);
     },
 );
 watch(
@@ -65,17 +66,8 @@ const onMainLoginByAstrox = async () => {
 let mainCreateActor: ActorCreator | undefined = undefined;
 const result = ref<string>('');
 
-const onMainCall = async () => {
-    result.value = '';
-    const actor = await mainCreateActor!<_SERVICE>(idlFactory, canisterId);
-    console.error('main actor', actor);
-    result.value = await actor.hello('main');
-
-    await testNft(mainCreateActor!, 1, principal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(mainCreateActor!); // 测试调用账本罐子
-};
-
 const onMainLogout = () => {
+    setCreator(undefined);
     disconnect();
     afterMainLogout();
 };
@@ -84,61 +76,12 @@ const afterMainLogout = () => {
     mainCreateActor = undefined;
     result.value = '';
 };
-
-const testNft = async (createActor: ActorCreator, index: number, principal: string, to: string) => {
-    const nft = await createActor<_SERVICE_NFT>(idlFactoryNft, canisterIdNft);
-    const token = await nft.calcTokenIdentifier(index);
-    console.error('testNft token', index, token, nft);
-    const balanceResult: any = await nft.balance({
-        token,
-        user: { principal: Principal.fromText(principal) },
-    });
-
-    console.error('testNft balance', principal, balanceResult);
-    if (balanceResult.err) return;
-    if (balanceResult.ok !== BigInt('1')) return;
-
-    const transferResult = await nft.transfer({
-        to: { principal: Principal.fromText(to) },
-        token: token,
-        notify: false,
-        from: { principal: Principal.fromText(principal) },
-        memo: new Uint8Array(),
-        subaccount: [],
-        amount: BigInt('1'),
-    });
-    console.error('testNft transfer to', to, transferResult);
-};
-
-const testLedger = async (createActor: ActorCreator) => {
-    const ledger = await createActor<_SERVICE_LEDGER>(idlFactoryLedger, canisterIdLedger);
-    ledger
-        .account_balance_dfx({
-            account: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
-        })
-        .then((d) => {
-            console.error('testLedger ledger balance', d);
-
-            ledger
-                .send_dfx({
-                    to: 'f3bc18a23254ff0df2e82f1fce9a5b3ffba655b884b4415a8970ae1acebe822d',
-                    fee: { e8s: BigInt('10000') },
-                    memo: BigInt(0),
-                    from_subaccount: [],
-                    created_at_time: [],
-                    amount: { e8s: BigInt('20000') },
-                })
-                .then((d) => {
-                    console.error('testLedger ledger send', d);
-                });
-        });
-};
 </script>
 
 <template>
     <div class="connect2ic-content">
         <div class="tip">
-            <span>主登录</span>
+            <span>登录</span>
             <span>{{ principal }}</span>
             <span>{{ result }}</span>
         </div>
@@ -146,20 +89,9 @@ const testLedger = async (createActor: ActorCreator) => {
             <div @click="onMainLoginByInternetIdentity">Internet Identity 登录</div>
             <div @click="onMainLoginByPlug">Plug 登录</div>
             <div @click="onMainLoginByAstrox">Astrox 登录</div>
-            <div v-if="principal" @click="onMainCall">调用方法</div>
             <div v-if="principal" @click="onMainLogout">注销</div>
         </div>
         <hr />
-        <div class="tip">
-            <span>次登录</span>
-            <!-- <span>{{ subPrincipal }}</span>
-            <span>{{ subResult }}</span> -->
-        </div>
-        <div class="sub-login login">
-            <!-- <div @click="onSubLogin">登录</div>
-            <div v-if="subPrincipal" @click="onSubCall">调用方法</div>
-            <div v-if="subPrincipal" @click="onSubLogout">注销</div> -->
-        </div>
     </div>
 </template>
 
