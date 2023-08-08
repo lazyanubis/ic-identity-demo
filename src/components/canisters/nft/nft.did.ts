@@ -1,4 +1,4 @@
-export const idlFactory = ({ IDL }) => {
+export const idlFactory = ({ IDL }: any) => {
     const DetailValue = IDL.Rec();
     const Settlement = IDL.Record({
         subaccount: IDL.Vec(IDL.Nat8),
@@ -337,7 +337,4 @@ export const idlFactory = ({ IDL }) => {
         ),
         viewDisbursements: IDL.Func([], [IDL.Vec(Disbursement)], ['query']),
     });
-};
-export const init = ({ IDL }) => {
-    return [];
 };
