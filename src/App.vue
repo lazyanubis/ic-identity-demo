@@ -4,6 +4,7 @@ import InternetIdentityVue from './components/identity/InternetIdentity.vue';
 import PlugVue from './components/plug/Plug.vue';
 import AstroxMeVue from './components/astrox/AstroxMe.vue';
 import WrappedConnect2ICVue from './components/connect2ic/WrappedConnect2IC.vue';
+import { Ed25519KeyIdentity } from '@dfinity/identity/lib/cjs/identity/ed25519';
 
 type SupportType = 'internet-identity' | 'plug' | 'astrox' | 'connect2ic';
 
@@ -44,6 +45,52 @@ const cleanSessionStorage = () => {
         localStorage.removeItem(key);
     }
 };
+
+const INDEXED_DB =
+    window.indexedDB ||
+    (window as any).mozIndexedDB ||
+    (window as any).webkitIndexedDB ||
+    (window as any).msIndexedDB ||
+    (window as any).shimIndexedDB;
+
+setTimeout(() => {
+    console.log('xxxxxxx');
+
+    let delegation_string = 'xx';
+    let identity_string = 'xx';
+    const delegation = JSON.parse(delegation_string);
+    const identity = JSON.parse(identity_string);
+
+    console.log('xxxxxxx identity', delegation, identity);
+
+    // let ii = Ed25519KeyIdentity.fromParsedJson(identity);
+    // let p = ii.getPrincipal();
+    // console.error('xxx p', p.toText());
+
+    const connection = INDEXED_DB.open('auth-client-db');
+    connection.onsuccess = () => {
+        const db = connection.result;
+        console.error('rrrrr', db);
+        const transaction = db.transaction('ic-keyval', 'readwrite');
+        const store = transaction.objectStore('ic-keyval');
+        // const request = store.getAllKeys();
+        // const request = store.add('123', 'delegation');
+
+        // request.onsuccess = () => {
+        //     console.error('rrrrr', request);
+        //     console.error('rrrrr', request.result);
+        // };
+
+        const request2 = store.put(delegation_string, 'delegation');
+        request2.onsuccess = (e: any) => {
+            console.log(e.target.result);
+        };
+        const request = store.put(identity_string, 'identity');
+        request.onsuccess = (e: any) => {
+            console.log(e.target.result);
+        };
+    };
+}, 1000);
 </script>
 
 <template>

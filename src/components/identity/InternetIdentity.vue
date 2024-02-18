@@ -14,6 +14,8 @@ import {
     canisterId as canisterIdLedger,
     _SERVICE as _SERVICE_LEDGER,
 } from '../canisters/ledger';
+import { idlFactory as idlFactoryDex } from '../canisters/dex';
+import { _SERVICE as _SERVICE_DEX } from '../canisters/dex/index.d';
 import { Principal } from '@dfinity/principal';
 import { ActorCreator, getActorCreatorByAgent } from '../common';
 
@@ -109,6 +111,9 @@ const afterMainLogin = async () => {
     mainPrincipal.value = principal;
     mainResult.value = '';
 
+    let dex = await createActor<_SERVICE_DEX>(idlFactoryDex, '2xiqo-wqaaa-aaaak-aek3a-cai');
+    await testDex(dex);
+
     console.error('main principal', principal);
     console.error('main agent', agent);
 };
@@ -118,8 +123,8 @@ const onMainCall = async () => {
     console.error('main actor test', main!.test);
     mainResult.value = await main!.test.hello('main');
 
-    await testNft(main!.nft, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
-    await testLedger(main!.ledger); // 测试调用账本罐子
+    // await testNft(main!.nft, 1, mainPrincipal.value, SUB_PRINCIPAL); // 测试调用复杂罐子
+    // await testLedger(main!.ledger); // 测试调用账本罐子
 };
 const onMainCall2 = async () => {
     const createActor = main!.createActor;
@@ -197,6 +202,17 @@ const testLedger = async (ledger: ActorSubclass<_SERVICE_LEDGER>) => {
                     console.error('testLedger ledger send', d);
                 });
         });
+};
+
+const testDex = async (dex: ActorSubclass<_SERVICE_DEX>) => {
+    dex.cancelAll(
+        {
+            self_sa: [],
+        },
+        [],
+    ).then((d) => {
+        console.error('testDex dex balance', d);
+    });
 };
 
 const onSubLogin = async () => {
